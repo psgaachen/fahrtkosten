@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <title>Fahrtkostenbeleg_PSG_Aachen_Assistent</title>
+    <style>
+        /* --- 1. DRUCK-STEUERUNG --- */
+        @page { size: A4; margin: 10mm; }
+        @media print {
+            body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white !important; }
+            button, #survey-ui, .no-print, .progress-container, #sig-modal { display: none !important; }
+            #final-doc { display: block !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
+            .container { max-width: 100% !important; border: none !important; box-shadow: none !important; }
+            #sig-placeholder { display: none !important; }
+            #sig-final-img { display: block !important; }
+        }
+
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #333; padding: 0; margin: 0; background-color: #f0f2f5; line-height: 1.2; }
+        .container { width: 100%; max-width: 800px; margin: 20px auto; background: white; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-radius: 8px; box-sizing: border-box; }
+        
+        /* --- 2. MODERNE UMFRAGE --- */
+        #survey-ui { max-width: 600px; margin: 50px auto; background: #ffffff; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .progress-container { margin-bottom: 30px; }
+        .progress-bar { height: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #2f5597; width: 25%; transition: width 0.3s ease; }
+        .step { display: none; } .step.active { display: block; }
+        h3 { color: #2f5597; font-size: 1.4rem; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; }
+        .q-row { margin-bottom: 20px; }
+        .q-row label { display: block; font-weight: 600; margin-bottom: 8px; color: #444; }
+        .q-row input, .q-row select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        .btn-box { display: flex; gap: 15px; margin-top: 30px; }
+        .btn-ui { padding: 14px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; flex: 1; }
+        .btn-next { background: #2f5597; color: white; }
+        .btn-prev { background: #f0f2f5; color: #666; }
+        .btn-finish { background: #28a745; color: white; }
+
+        /* --- 3. ORIGINAL BELEG STYLE --- */
+        #final-doc { display: none; font-family: Arial, sans-serif; color: #000; }
+        .form-id { text-align: right; font-weight: bold; font-size: 11pt; margin-bottom: 5px; }
+        .header-section { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .header-left { width: 30%; font-weight: bold; font-size: 9pt; }
+        .header-right-block { border: 1px solid #000; width: 70%; display: grid; grid-template-columns: 140px 1fr; background-color: #e7e6e6 !important; }
+        .header-label { background-color: #fff !important; padding: 2px; font-weight: bold; font-size: 9pt; border-right: 1px solid #000; }
+        .header-value { padding: 2px; font-weight: bold; font-size: 10pt; background-color: #e7e6e6 !important; }
+        h1 { text-align: center; font-size: 13pt; margin: 20px 0 2px 0; font-weight: bold; }
+        .sub-title { text-align: center; font-size: 8pt; margin-bottom: 15px; }
+        .section-label { font-weight: bold; font-size: 10pt; margin: 12px 0 5px 0; }
+        .input-row { display: flex; border: 1px solid #000; background-color: #e7e6e6 !important; }
+        .field { border-right: 1px solid #000; padding: 2px 5px; flex: 1; min-height: 32px; }
+        .field:last-child { border-right: none; }
+        .field-label { font-size: 7.5pt; display: block; }
+        .doc-input { border: none !important; background: transparent !important; width: 100% !important; font-size: 10pt !important; outline: none !important; font-weight: bold !important; padding: 0 !important; }
+        .cost-table { width: 100%; border-collapse: collapse; border: 1px solid #000; margin-top: 5px; }
+        .cost-table th { border: 1px solid #000; font-size: 7.5pt; font-weight: normal; padding: 4px; background: #fff; }
+        .cost-table td { border: 1px solid #000; height: 26px; padding: 0 5px; font-size: 9pt; }
+        .gray-bg, .blue-bg { background-color: #e7e6e6 !important; text-align: center; }
+        .payment-box { border: 1px solid #000; margin-top: 5px; }
+        .payment-header { display: flex; border-bottom: 1px solid #000; }
+        .pay-option { flex: 1; display: flex; align-items: center; padding: 2px; border-right: 1px solid #000; }
+        .check-box { width: 16px; height: 16px; border: 1px solid #000; margin: 4px 8px; background: #fff; text-align: center; font-weight: bold; line-height: 16px; }
+        .footer-text { font-size: 8pt; margin-top: 10px; border: 1px solid #000; border-bottom: none; padding: 8px; background: #fff; }
+        .signature-grid { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #000; background-color: #e7e6e6 !important; }
+        .sig-box { padding: 4px; height: 60px; position: relative; border-right: 1px solid #000; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .sig-label { position: absolute; bottom: 3px; left: 4px; font-size: 7.5pt; }
+        .receipt-area { border: 1px dashed #000; height: 150px; margin-top: 10px; }
+        
+        /* --- 4. SIGNATURE MODAL --- */
+        #sig-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 600px; text-align: center; }
+     #sig-canvas { 
+    border: 2px dashed #ccc; 
+    background: #f9f9f9; 
+    width: 100%; 
+    height: 250px; 
+    cursor: crosshair; 
+    touch-action: none; /* Verhindert das Scrollen der Seite beim Unterschreiben */
+}
+        #sig-final-img { display: none; max-height: 50px; }
+        #sig-placeholder { color: #2f5597; font-weight: bold; font-size: 9pt; text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div id="sig-modal">
+    <div class="modal-content">
+        <h3>Digitale Unterschrift</h3>
+        <p>Bitte zeichne deine Unterschrift in das Feld unten:</p>
+        <canvas id="sig-canvas"></canvas>
+        <div class="btn-box">
+            <button class="btn-ui btn-prev" onclick="closeModal()">Abbrechen</button>
+            <button class="btn-ui btn-prev" style="background:#666; color:white" onclick="clearSig()">Löschen</button>
+            <button class="btn-ui btn-finish" onclick="saveSig()">Übernehmen</button>
+        </div>
+    </div>
+</div>
+
+<div id="survey-ui" class="no-print">
+    <div class="progress-container">
+        <div class="progress-bar"><div id="p-fill" class="progress-fill"></div></div>
+    </div>
+    <div id="s1" class="step active">
+        <h3>Schritt 1: Wer stellt den Antrag?</h3>
+        <div class="q-row"><label>Vorname</label><input type="text" id="iq_vorname"></div>
+        <div class="q-row"><label>Nachname</label><input type="text" id="iq_name"></div>
+        <div class="btn-box"><button class="btn-ui btn-next" onclick="go(2)">Weiter ➔</button></div>
+    </div>
+    <div id="s2" class="step">
+        <h3>Schritt 2: Wie bist du gereist?</h3>
+        <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">Gib hier die Kilometer pro Kategorie ein. Du kannst auch mehrere Felder befüllen.</p>
+        <div class="q-row"><label>Eigener PKW (km)</label><input type="number" id="iq_km_pkw" value="0"></div>
+        <div class="q-row"><label>Anzahl Mitfahrende im PKW</label><input type="number" id="iq_mitfahrer" value="0"></div>
+        <div class="q-row"><label>PKW mit Anhänger (km)</label><input type="number" id="iq_km_anhanger" value="0"></div>
+        <div class="q-row"><label>Fahrrad / Zweirad (km)</label><input type="number" id="iq_km_rad" value="0"></div>
+        <div class="q-row"><label>Kosten für ÖPNV / Bahn (in €)</label><input type="number" id="iq_oev" value="0" step="0.01"></div>
+        <div class="btn-box"><button class="btn-ui btn-prev" onclick="go(1)">Zurück</button><button class="btn-ui btn-next" onclick="go(3)">Weiter ➔</button></div>
+    </div>
+    <div id="s3" class="step">
+        <h3>Schritt 3: Fahrt- & Bankdaten</h3>
+        <div class="q-row"><label>Datum der Veranstaltung (von-bis)</label><input type="text" id="iq_datum_v"></div>
+        <div class="q-row"><label>Ort der Veranstaltung</label><input type="text" id="iq_ort"></div>
+        <div class="q-row"><label>Wegstrecke (z.B. Aachen - Köln - Aachen)</label><input type="text" id="iq_weg"></div>
+        <div class="q-row"><label>IBAN</label><input type="text" id="iq_iban"></div>
+        <div class="btn-box"><button class="btn-ui btn-prev" onclick="go(2)">Zurück</button><button class="btn-ui btn-next" onclick="go(4)">Weiter ➔</button></div>
+    </div>
+    <div id="s4" class="step">
+        <h3>Schritt 4: Abschluss</h3>
+        <div class="q-row"><label>Ort der Unterschrift</label><input type="text" id="iq_ort_u" value="Aachen"></div>
+        <div class="q-row"><label>Datum der Unterschrift</label><input type="text" id="iq_datum_u"></div>
+        <div class="btn-box"><button class="btn-ui btn-prev" onclick="go(3)">Zurück</button><button class="btn-ui btn-finish" onclick="finish()">Beleg generieren</button></div>
+    </div>
+</div>
+
+<div id="final-doc" class="container">
+    <div class="form-id">Formular 3b</div>
+    <div class="header-section">
+        <div class="header-left">Ring deutscher Pfadfinder- und<br>Pfadfinderinnenverbände<br>Nordrhein-Westfalen e.V.</div>
+        <div class="header-right-block">
+            <div class="header-label">Mitgliedsverband:</div><div class="header-value">PSG Aachen</div>
+            <div class="header-label">Träger:</div><div class="header-value">PWSG Aachen e.V.</div>
+        </div>
+    </div>
+
+    <h1>Fahrtkostenbeleg (PKW, Fahrrad, zweirädrige KFZ und ÖPNV)</h1>
+    <div class="sub-title">für die aus Mitteln des Kinder- und Jugendförderplanes NRW geförderte Veranstaltung</div>
+
+    <div class="section-label">A Fahrtkostenempfängerin/Fahrtkostenempfänger</div>
+    <div class="input-row">
+        <div class="field" style="flex: 1.5;"><span class="field-label">Name</span><input type="text" id="out_name" class="doc-input"></div>
+        <div class="field"><span class="field-label">Vorname</span><input type="text" id="out_vorname" class="doc-input"></div>
+    </div>
+
+    <div class="section-label">B Daten zur Veranstaltung</div>
+    <div class="input-row">
+        <div class="field"><span class="field-label">Veranstaltungsdatum (von – bis)</span><input type="text" id="out_datum_v" class="doc-input"></div>
+        <div class="field"><span class="field-label">Ort</span><input type="text" id="out_ort" class="doc-input"></div>
+        <div class="field"><span class="field-label">Wegstrecke</span><input type="text" id="out_weg" class="doc-input"></div>
+    </div>
+
+    <div class="section-label">C Fahrtkosten</div>
+    <table class="cost-table">
+        <tr>
+            <th style="width: 53%;"></th>
+            <th style="width: 7%;">gefahrene km</th>
+            <th style="width: 10%;">Euro pro km</th>
+            <th style="width: 10%;">Anzahl Mitfahrende</th>
+            <th style="width: 12%;">Euro pro km und Mitfahrendem</th>
+            <th style="width: 8%;">Euro gesamt</th>
+        </tr>
+        <tr><td>Eigener PKW</td><td class="blue-bg"><input type="text" id="c_km" class="doc-input" style="text-align:center"></td><td class="gray-bg">0,30</td><td class="blue-bg"><input type="text" id="c_mit" class="doc-input" style="text-align:center"></td><td class="gray-bg">0,02</td><td class="blue-bg"><input type="text" id="c_res" class="doc-input" style="text-align:right"></td></tr>
+        <tr><td>Kraftfahrzeuganhänger zur Beförderung von Lasten</td><td class="blue-bg"><input type="text" id="a_km" class="doc-input" style="text-align:center"></td><td class="gray-bg">0,10</td><td colspan="2"></td><td class="blue-bg"><input type="text" id="a_res" class="doc-input" style="text-align:right"></td></tr>
+        <tr><td>Fahrrad oder zweirädrige Kraftfahrzeuge</td><td class="blue-bg"><input type="text" id="r_km" class="doc-input" style="text-align:center"></td><td class="gray-bg">0,15</td><td colspan="2"></td><td class="blue-bg"><input type="text" id="r_res" class="doc-input" style="text-align:right"></td></tr>
+        <tr><td colspan="5" style="background: #fff !important; padding: 2px; font-size: 10pt;">Öffentl. Verkehrsmittel <span style="font-size: 7.5pt;">(Originalbelege beifügen aus denen ersichtlich ist, wann und mit wie vielen Personen die Fahrt stattgefunden hat)</span></td><td class="blue-bg"><input type="text" id="oev_res" class="doc-input" style="text-align:right"></td></tr>
+        <tr style="font-weight: bold;"><td>Gesamtzahlung</td><td colspan="4" style="background:#fff"></td><td class="blue-bg"><input type="text" id="c_total" class="doc-input" style="text-align:right"></td></tr>
+    </table>
+
+    <div class="section-label">D Zahlungsart</div>
+    <div class="payment-box">
+        <div class="payment-header"><div class="pay-option"><div class="check-box"></div> Bar</div><div class="pay-option" style="background: #fff;"><div class="check-box">X</div> <strong>Überweisung</strong></div></div>
+        <div class="input-row" style="border: none;"><div class="field"><span class="field-label">IBAN</span><input type="text" id="out_iban" class="doc-input"></div></div>
+    </div>
+
+    <div class="section-label">E Bestätigung der Fahrtkostenempfängerin / des Fahrtkostenempfängers</div>
+    <div class="footer-text">Ich versichere durch meine Unterschrift, dass mir die o.g. Fahrtkosten tatsächlich entstanden sind und von keiner anderen Stelle erstattet werden.
+Bei Barauszahlung habe ich den oben genannten Betrag erhalten.</div>
+    <div class="signature-grid">
+        <div class="sig-box"><span class="sig-label">Ort, Datum</span><input type="text" id="out_sig_date" class="doc-input" style="margin-top:10px"></div>
+        <div class="sig-box" onclick="openModal()">
+            <span id="sig-placeholder">Hier klicken zum Unterschreiben</span>
+            <img id="sig-final-img" alt="Unterschrift">
+            <span class="sig-label">Unterschrift (bitte zeichnen)</span>
+        </div>
+    </div>
+    <div class="section-label">F Beleg(e)</div>
+    <div class="receipt-area"></div>
+    <button class="no-print btn-ui btn-next" onclick="window.print()" style="width:100%; margin-top:20px">Drucken / PDF speichern</button>
+</div>
+
+<script>
+    document.getElementById('iq_datum_u').value = new Date().toLocaleDateString('de-DE');
+
+    function go(s) { 
+        document.querySelectorAll('.step').forEach(x => x.classList.remove('active')); 
+        document.getElementById('s' + s).classList.add('active'); 
+        document.getElementById('p-fill').style.width = (s * 25) + '%';
+    }
+
+function finish() {
+        const vorname = document.getElementById('iq_vorname').value.trim();
+        const nachname = document.getElementById('iq_name').value.trim();
+        const kmPkw = parseFloat(document.getElementById('iq_km_pkw').value) || 0;
+        const mitfahrer = parseInt(document.getElementById('iq_mitfahrer').value) || 0;
+        const kmAnh = parseFloat(document.getElementById('iq_km_anhanger').value) || 0;
+        const kmRad = parseFloat(document.getElementById('iq_km_rad').value) || 0;
+        const oev = parseFloat(document.getElementById('iq_oev').value) || 0;
+        const iban = document.getElementById('iq_iban').value.replace(/\s+/g, '');
+
+        // --- DATEN ÜBERTRAGEN (Ohne Prüfung) ---
+        document.getElementById('out_name').value = nachname;
+        document.getElementById('out_vorname').value = vorname;
+        document.getElementById('out_datum_v').value = document.getElementById('iq_datum_v').value;
+        document.getElementById('out_ort').value = document.getElementById('iq_ort').value;
+        document.getElementById('out_weg').value = document.getElementById('iq_weg').value;
+        document.getElementById('out_iban').value = iban.toUpperCase();
+        document.getElementById('out_sig_date').value = document.getElementById('iq_ort_u').value + ", den " + document.getElementById('iq_datum_u').value;
+
+        // Reset Tabelle im Beleg
+        document.getElementById('c_km').value = ""; document.getElementById('c_mit').value = ""; document.getElementById('c_res').value = "";
+        document.getElementById('a_km').value = ""; document.getElementById('a_res').value = "";
+        document.getElementById('r_km').value = ""; document.getElementById('r_res').value = "";
+
+        let total = oev;
+
+        // Berechnung PKW
+        if(kmPkw > 0 || mitfahrer > 0) {
+            let val = (kmPkw * 0.3) + (kmPkw * mitfahrer * 0.02);
+            document.getElementById('c_km').value = kmPkw > 0 ? kmPkw : "";
+            document.getElementById('c_mit').value = mitfahrer > 0 ? mitfahrer : "0";
+            document.getElementById('c_res').value = val.toFixed(2) + " €";
+            total += val;
+        }
+
+        // Berechnung Anhänger
+        if(kmAnh > 0) {
+            let val = kmAnh * 0.1;
+            document.getElementById('a_km').value = kmAnh;
+            document.getElementById('a_res').value = val.toFixed(2) + " €";
+            total += val;
+        }
+
+        // Berechnung Rad
+        if(kmRad > 0) {
+            let val = kmRad * 0.15;
+            document.getElementById('r_km').value = kmRad;
+            document.getElementById('r_res').value = val.toFixed(2) + " €";
+            total += val;
+        }
+
+        document.getElementById('oev_res').value = oev > 0 ? oev.toFixed(2) + " €" : "";
+        document.getElementById('c_total').value = total.toFixed(2) + " €";
+
+        // UI Wechsel
+        document.getElementById('survey-ui').style.display = 'none';
+        document.getElementById('final-doc').style.display = 'block';
+    }
+
+    /* MODAL & CANVAS LOGIK */
+    let canvas = document.getElementById('sig-canvas');
+    let ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    function openModal() {
+        document.getElementById('sig-modal').style.display = 'flex';
+        canvas.width = canvas.offsetWidth;
+        canvas.height = canvas.offsetHeight;
+        ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.strokeStyle = "black";
+    }
+    function closeModal() { document.getElementById('sig-modal').style.display = 'none'; }
+    function clearSig() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+    function saveSig() {
+        const dataUrl = canvas.toDataURL();
+        document.getElementById('sig-final-img').src = dataUrl;
+        document.getElementById('sig-final-img').style.display = 'block';
+        document.getElementById('sig-placeholder').style.display = 'none';
+        closeModal();
+    }
+  const getPos = (e) => {
+    let rect = canvas.getBoundingClientRect();
+    // Erkennt sowohl Maus- als auch Touch-Koordinaten korrekt
+    let clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    return { 
+        x: clientX - rect.left, 
+        y: clientY - rect.top 
+    };
+};
+    canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); let p = getPos(e); ctx.moveTo(p.x, p.y); });
+    canvas.addEventListener('mousemove', (e) => { if(!drawing) return; e.preventDefault(); let p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
+    canvas.addEventListener('touchstart', (e) => { drawing = true; ctx.beginPath(); let p = getPos(e); ctx.moveTo(p.x, p.y); }, {passive: false});
+    canvas.addEventListener('touchmove', (e) => { if(!drawing) return; e.preventDefault(); let p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }, {passive: false});
+    window.addEventListener('mouseup', () => drawing = false);
+    window.addEventListener('touchend', () => drawing = false);
+</script>
+</body>
+</html>
