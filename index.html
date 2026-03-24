@@ -5,19 +5,16 @@
     <meta charset="UTF-8">
     <title>Fahrtkostenbeleg_PSG_Aachen_Assistent</title>
     <style>
-        /* --- 1. DRUCK-STEUERUNG --- */
-/* --- 1. OPTIMIERTE DRUCK-STEUERUNG --- */
+        /* --- 1. OPTIMIERTE DRUCK-STEUERUNG --- */
 @page { 
     size: A4; 
-    margin: 0; /* Margin auf 0, wir regeln das im Body */
+    margin: 0; 
 }
 
 @media print {
     html, body {
-        height: 100%;
         margin: 0 !important;
         padding: 0 !important;
-        overflow: hidden; /* Verhindert das "Rausrutschen" auf Seite 2 */
     }
 
     body { 
@@ -25,9 +22,9 @@
         print-color-adjust: exact; 
     }
 
-    #survey-ui, .no-print, #sig-modal { 
+    #survey-ui, .no-print, #sig-modal, #mail-modal { 
         display: none !important; 
-        height: 0 !important; /* Absolut kein Platzverbrauch */
+        height: 0 !important; 
         margin: 0 !important;
     }
 
@@ -35,12 +32,18 @@
         width: 100% !important; 
         max-width: none !important;
         margin: 0 !important; 
-        padding: 10mm !important; /* Hier definieren wir den Rand */
+        padding: 10mm !important; 
         box-shadow: none !important;
         border: none !important;
     }
 
-    /* Verkleinert die Beleg-Fläche leicht, falls es immer noch knapp ist */
+    .page-break {
+        display: block;
+        border: none;
+        break-before: page;
+        margin-top: 50px;
+    }
+
     .receipt-area {
         height: 120px !important; 
     }
@@ -58,7 +61,7 @@
         h3 { color: #2f5597; font-size: 1.4rem; margin-top: 0; margin-bottom: 20px; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; }
         .q-row { margin-bottom: 20px; }
         .q-row label { display: block; font-weight: 600; margin-bottom: 8px; color: #444; }
-        .q-row input, .q-row select { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+        .q-row input, .q-row select, .q-row textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 1rem; box-sizing: border-box; font-family: inherit; }
         .btn-box { display: flex; gap: 15px; margin-top: 30px; }
         .btn-ui { padding: 14px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; flex: 1; }
         .btn-next { background: #2f5597; color: white; }
@@ -95,19 +98,17 @@
         .sig-label { position: absolute; bottom: 3px; left: 4px; font-size: 7.5pt; }
         .receipt-area { border: 1px dashed #000; height: 150px; margin-top: 10px; }
         
-        /* --- 4. SIGNATURE MODAL --- */
-        #sig-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
-        .modal-content { background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 600px; text-align: center; }
-     #sig-canvas { 
-    border: 2px dashed #ccc; 
-    background: #f9f9f9; 
-    width: 100%; 
-    height: 250px; 
-    cursor: crosshair; 
-    touch-action: none; /* Verhindert das Scrollen der Seite beim Unterschreiben */
-}
+        /* --- 4. MODALS (Signature & Mail) --- */
+        #sig-modal, #mail-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 12px; width: 90%; max-width: 500px; text-align: center; }
+        #sig-canvas { border: 2px dashed #ccc; background: #f9f9f9; width: 100%; height: 250px; cursor: crosshair; touch-action: none; }
         #sig-final-img { display: none; max-height: 50px; }
         #sig-placeholder { color: #2f5597; font-weight: bold; font-size: 9pt; text-decoration: underline; }
+
+        /* --- 5. SEITE 2 STYLE --- */
+        .mitfahrer-list { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .mitfahrer-list td { border-bottom: 1px solid #ccc; padding: 8px; font-size: 11pt; }
+        .mitfahrer-list tr:first-child td { border-top: 1px solid #000; }
     </style>
 </head>
 <body>
@@ -121,6 +122,16 @@
             <button class="btn-ui btn-prev" onclick="closeModal()">Abbrechen</button>
             <button class="btn-ui btn-prev" style="background:#666; color:white" onclick="clearSig()">Löschen</button>
             <button class="btn-ui btn-finish" onclick="saveSig()">Übernehmen</button>
+        </div>
+    </div>
+</div>
+
+<div id="mail-modal">
+    <div class="modal-content">
+        <h3 style="color: #2f5597;">Fast fertig!</h3>
+        <p style="font-size: 1.1rem; line-height: 1.4;">Bitte schicke den Beleg im Anschluss an die Maßnahmenleitung. Im Zweifel an info@psg-aachen.de</p>
+        <div class="btn-box">
+            <button class="btn-ui btn-finish" onclick="executePrint()">Verstanden & Drucken</button>
         </div>
     </div>
 </div>
@@ -139,7 +150,11 @@
         <h3>Schritt 2: Wie bist du gereist?</h3>
         <p style="font-size: 0.9rem; color: #666; margin-bottom: 15px;">Gib hier die Kilometer pro Kategorie ein. Du kannst auch mehrere Felder befüllen.</p>
         <div class="q-row"><label>Eigener PKW (km)</label><input type="number" id="iq_km_pkw" value="0"></div>
-        <div class="q-row"><label>Anzahl Mitfahrende im PKW</label><input type="number" id="iq_mitfahrer" value="0"></div>
+        <div class="q-row"><label>Wie viele Leute hast du mitgenommen?</label><input type="number" id="iq_mitfahrer" value="0" oninput="toggleMitfahrerNames()"></div>
+        <div class="q-row" id="mitfahrer-names-row" style="display:none;">
+            <label>Namen der Mitfahrenden (ein Name pro Zeile)</label>
+            <textarea id="iq_mitfahrer_liste" rows="4" placeholder="z.B. Max Mustermann&#10;Erika Musterfrau"></textarea>
+        </div>
         <div class="q-row"><label>PKW mit Anhänger (km)</label><input type="number" id="iq_km_anhanger" value="0"></div>
         <div class="q-row"><label>Fahrrad / Zweirad (km)</label><input type="number" id="iq_km_rad" value="0"></div>
         <div class="q-row"><label>Kosten für ÖPNV / Bahn (in €)</label><input type="number" id="iq_oev" value="0" step="0.01"></div>
@@ -207,7 +222,7 @@
     <div class="section-label">D Zahlungsart</div>
     <div class="payment-box">
         <div class="payment-header"><div class="pay-option"><div class="check-box"></div> Bar</div><div class="pay-option" style="background: #fff;"><div class="check-box">X</div> <strong>Überweisung</strong></div></div>
-        <div class="input-row" style="border: none;"><div class="field"><span class="field-label">IBAN</span><input type="text" id="out_iban" class="doc-input"></div></div>
+        <div class="input-row" style="border: none; border-top: 1px solid #000;"><div class="field"><span class="field-label">IBAN</span><input type="text" id="out_iban" class="doc-input"></div></div>
     </div>
 
     <div class="section-label">E Bestätigung der Fahrtkostenempfängerin / des Fahrtkostenempfängers</div>
@@ -223,11 +238,26 @@ Bei Barauszahlung habe ich den oben genannten Betrag erhalten.</div>
     </div>
     <div class="section-label">F Beleg(e)</div>
     <div class="receipt-area"></div>
-    <button class="no-print btn-ui btn-next" onclick="window.print()" style="width:100%; margin-top:20px">Drucken / PDF speichern</button>
+
+    <div class="page-break"></div>
+    <div id="page2-content">
+        <div class="section-label" style="font-size: 14pt; border-bottom: 1px solid #000; padding-bottom: 5px;">Anlage: Liste der mitfahrenden Personen</div>
+        <p style="font-size: 9pt; margin-top: 10px;">Zugehörig zum Fahrtkostenbeleg von: <strong id="out_name_p2"></strong></p>
+        <table class="mitfahrer-list">
+            <tbody id="mitfahrer_tbody"></tbody>
+        </table>
+    </div>
+
+    <button class="no-print btn-ui btn-next" onclick="showMailNotice()" style="width:100%; margin-top:20px">Drucken / PDF speichern</button>
 </div>
 
 <script>
     document.getElementById('iq_datum_u').value = new Date().toLocaleDateString('de-DE');
+
+    function toggleMitfahrerNames() {
+        const count = parseInt(document.getElementById('iq_mitfahrer').value) || 0;
+        document.getElementById('mitfahrer-names-row').style.display = count > 0 ? 'block' : 'none';
+    }
 
     function go(s) { 
         document.querySelectorAll('.step').forEach(x => x.classList.remove('active')); 
@@ -235,33 +265,51 @@ Bei Barauszahlung habe ich den oben genannten Betrag erhalten.</div>
         document.getElementById('p-fill').style.width = (s * 25) + '%';
     }
 
-function finish() {
+    function showMailNotice() {
+        document.getElementById('mail-modal').style.display = 'flex';
+    }
+
+    function executePrint() {
+        document.getElementById('mail-modal').style.display = 'none';
+        window.print();
+    }
+
+    function finish() {
         const vorname = document.getElementById('iq_vorname').value.trim();
         const nachname = document.getElementById('iq_name').value.trim();
         const kmPkw = parseFloat(document.getElementById('iq_km_pkw').value) || 0;
         const mitfahrer = parseInt(document.getElementById('iq_mitfahrer').value) || 0;
+        const mitfahrerListe = document.getElementById('iq_mitfahrer_liste').value.trim();
         const kmAnh = parseFloat(document.getElementById('iq_km_anhanger').value) || 0;
         const kmRad = parseFloat(document.getElementById('iq_km_rad').value) || 0;
         const oev = parseFloat(document.getElementById('iq_oev').value) || 0;
         const iban = document.getElementById('iq_iban').value.replace(/\s+/g, '');
 
-        // --- DATEN ÜBERTRAGEN (Ohne Prüfung) ---
         document.getElementById('out_name').value = nachname;
         document.getElementById('out_vorname').value = vorname;
+        document.getElementById('out_name_p2').textContent = vorname + " " + nachname;
         document.getElementById('out_datum_v').value = document.getElementById('iq_datum_v').value;
         document.getElementById('out_ort').value = document.getElementById('iq_ort').value;
         document.getElementById('out_weg').value = document.getElementById('iq_weg').value;
         document.getElementById('out_iban').value = iban.toUpperCase();
         document.getElementById('out_sig_date').value = document.getElementById('iq_ort_u').value + ", den " + document.getElementById('iq_datum_u').value;
 
-        // Reset Tabelle im Beleg
+        const tbody = document.getElementById('mitfahrer_tbody');
+        tbody.innerHTML = "";
+        if (mitfahrerListe) {
+            const namen = mitfahrerListe.split('\n');
+            namen.forEach((n, index) => {
+                if(n.trim() !== "") {
+                    tbody.innerHTML += `<tr><td style="width:30px;">${index+1}.</td><td>${n.trim()}</td></tr>`;
+                }
+            });
+        }
+
         document.getElementById('c_km').value = ""; document.getElementById('c_mit').value = ""; document.getElementById('c_res').value = "";
         document.getElementById('a_km').value = ""; document.getElementById('a_res').value = "";
         document.getElementById('r_km').value = ""; document.getElementById('r_res').value = "";
 
         let total = oev;
-
-        // Berechnung PKW
         if(kmPkw > 0 || mitfahrer > 0) {
             let val = (kmPkw * 0.3) + (kmPkw * mitfahrer * 0.02);
             document.getElementById('c_km').value = kmPkw > 0 ? kmPkw : "";
@@ -269,27 +317,21 @@ function finish() {
             document.getElementById('c_res').value = val.toFixed(2) + " €";
             total += val;
         }
-
-        // Berechnung Anhänger
         if(kmAnh > 0) {
             let val = kmAnh * 0.1;
             document.getElementById('a_km').value = kmAnh;
             document.getElementById('a_res').value = val.toFixed(2) + " €";
             total += val;
         }
-
-        // Berechnung Rad
         if(kmRad > 0) {
             let val = kmRad * 0.15;
             document.getElementById('r_km').value = kmRad;
             document.getElementById('r_res').value = val.toFixed(2) + " €";
             total += val;
         }
-
         document.getElementById('oev_res').value = oev > 0 ? oev.toFixed(2) + " €" : "";
         document.getElementById('c_total').value = total.toFixed(2) + " €";
 
-        // UI Wechsel
         document.getElementById('survey-ui').style.display = 'none';
         document.getElementById('final-doc').style.display = 'block';
     }
@@ -314,16 +356,12 @@ function finish() {
         document.getElementById('sig-placeholder').style.display = 'none';
         closeModal();
     }
-  const getPos = (e) => {
-    let rect = canvas.getBoundingClientRect();
-    // Erkennt sowohl Maus- als auch Touch-Koordinaten korrekt
-    let clientX = e.clientX || (e.touches && e.touches[0].clientX);
-    let clientY = e.clientY || (e.touches && e.touches[0].clientY);
-    return { 
-        x: clientX - rect.left, 
-        y: clientY - rect.top 
+    const getPos = (e) => {
+        let rect = canvas.getBoundingClientRect();
+        let clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        let clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        return { x: clientX - rect.left, y: clientY - rect.top };
     };
-};
     canvas.addEventListener('mousedown', (e) => { drawing = true; ctx.beginPath(); let p = getPos(e); ctx.moveTo(p.x, p.y); });
     canvas.addEventListener('mousemove', (e) => { if(!drawing) return; e.preventDefault(); let p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); });
     canvas.addEventListener('touchstart', (e) => { drawing = true; ctx.beginPath(); let p = getPos(e); ctx.moveTo(p.x, p.y); }, {passive: false});
