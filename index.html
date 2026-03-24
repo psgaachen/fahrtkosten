@@ -1,50 +1,49 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta charset="UTF-8">
     <title>Fahrtkostenbeleg_PSG_Aachen_Assistent</title>
     <style>
         /* --- 1. DRUCK-STEUERUNG --- */
-        @page { size: A4; margin: 10mm; }
-       @media print {
-    /* Erzwinge A4 ohne Skalierung durch das Handy */
-    @page { 
-        size: A4; 
-        margin: 10mm; 
+/* --- 1. OPTIMIERTE DRUCK-STEUERUNG --- */
+@page { 
+    size: A4; 
+    margin: 0; /* Margin auf 0, wir regeln das im Body */
+}
+
+@media print {
+    html, body {
+        height: 100%;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden; /* Verhindert das "Rausrutschen" auf Seite 2 */
     }
 
     body { 
-        width: 210mm; /* A4 Standard */
-        background: white !important; 
-        -webkit-print-color-adjust: exact !important; 
-        print-color-adjust: exact !important; 
+        -webkit-print-color-adjust: exact; 
+        print-color-adjust: exact; 
+    }
+
+    #survey-ui, .no-print, #sig-modal { 
+        display: none !important; 
+        height: 0 !important; /* Absolut kein Platzverbrauch */
+        margin: 0 !important;
     }
 
     .container { 
-        width: 190mm !important; /* A4 abzüglich Margen */
-        max-width: 190mm !important;
+        width: 100% !important; 
+        max-width: none !important;
         margin: 0 !important; 
-        padding: 0 !important; 
+        padding: 10mm !important; /* Hier definieren wir den Rand */
         box-shadow: none !important;
         border: none !important;
     }
 
-    /* Verhindert, dass Texte in der Tabelle umbrechen */
-    .cost-table td, .field-label, .header-label {
-        white-space: nowrap; 
+    /* Verkleinert die Beleg-Fläche leicht, falls es immer noch knapp ist */
+    .receipt-area {
+        height: 120px !important; 
     }
-
-    /* Speziell für Flexbox-Probleme am Handy */
-    .header-section, .input-row, .signature-grid {
-        display: flex !important;
-        flex-direction: row !important;
-        flex-wrap: nowrap !important;
-    }
-
-    /* Verstecke alles andere */
-    .no-print, #survey-ui, button { display: none !important; }
-    #final-doc { display: block !important; }
 }
 
         body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #333; padding: 0; margin: 0; background-color: #f0f2f5; line-height: 1.2; }
